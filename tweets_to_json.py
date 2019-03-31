@@ -1,14 +1,18 @@
 import argparse
-import gzip
+import io
 import json
 import logging
 import sys
+import zstandard as zstd
 
 log = logging.getLogger(__name__)
 
 def parse_tweet_stream(path):
-    with gzip.open(path, 'rt', encoding='utf8') as fp:
-        for line in fp:
+    with open(path, 'rb') as fp:
+        dctx = zstd.ZstdDecompressor()
+        stream_reader = dctx.stream_reader(fp)
+        stream = io.TextIOWrapper(stream_reader, encoding='utf8')
+        for line in stream:
             line = line.strip()
             if line:
                 try:

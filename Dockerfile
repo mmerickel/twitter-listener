@@ -1,4 +1,4 @@
-FROM python:3-alpine
+FROM python:3.7
 
 RUN set -e \
     && mkdir /app && cd /app \
@@ -8,7 +8,11 @@ WORKDIR /app
 
 COPY Pipfile Pipfile.lock ./
 
-RUN pipenv install
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && apt-get install -y build-essential \
+    && pipenv install \
+    && apt-get remove -y build-essential \
+    && apt-get clean
 
 COPY listen.py ./
 

@@ -1,6 +1,5 @@
 import argparse
 from datetime import datetime, timedelta
-import gzip
 import logging
 import os
 import signal
@@ -8,11 +7,13 @@ import sys
 import tweepy
 from twilio.rest import Client as TwilioClient
 import yaml
+import zstandard as zstd
 
 log = logging.getLogger(__name__)
 
 class FileOutputStreamListener(tweepy.StreamListener):
     fp = None
+    compressor = None
     last_report_at = None
     num_records_since_report = 0
     report_every = timedelta(seconds=1)
@@ -53,7 +54,8 @@ class FileOutputStreamListener(tweepy.StreamListener):
 
         """
         signal.signal(signal.SIGHUP, signal.SIG_DFL)
-        log.exception('received exception while streaming')
+        exc_info = (type(e), e, e.__traceback__)
+        log.exception('received exception while streaming', exc_info=exc_info)
         self.cleanup()
 
     def keep_alive(self):
@@ -70,12 +72,10 @@ class FileOutputStreamListener(tweepy.StreamListener):
 
         if self.fp is None:
             log.info(f'opening path={self.path}')
-            self.fp = gzip.open(
-                self.path,
-                mode='ab',
-                compresslevel=6,
-            )
-        self.fp.write(data.strip().encode('utf8') + b'\n')
+            self.fp = open(self.path, mode='ab')
+            cctx = zstd.ZstdCompressor(level=10)
+            self.compressor = cctx.stream_writer(self.fp)
+        self.compressor.write(data.strip().encode('utf8') + b'\n')
 
         if now - self.last_report_at >= self.report_every:
             self.report(now=now)
@@ -103,6 +103,7 @@ class FileOutputStreamListener(tweepy.StreamListener):
 
     def cleanup(self):
         if self.fp is not None:
+            self.compressor.close()
             self.fp.close()
             self.fp = None
 
@@ -156,17 +157,17 @@ def main(argv=sys.argv):
             stream.filter(**config, stall_warnings=True)
         except Exception as ex:
             log.info('restarting after receiving exception')
-            try:
-                twilio.messages.create(
-                    body=(
-                        f'Received twitter-listen exception '
-                        f'type={type(ex).__qualname__} args={ex}'
-                    ),
-                    from_=profile['twilio']['source_phone_number'],
-                    to=profile['twilio']['target_phone_number'],
-                )
-            except Exception:
-                log.exception('squashing error sending sms')
+            #try:
+            #    twilio.messages.create(
+            #        body=(
+            #            f'Received twitter-listen exception '
+            #            f'type={type(ex).__qualname__} args={ex}'
+            #        ),
+            #        from_=profile['twilio']['source_phone_number'],
+            #        to=profile['twilio']['target_phone_number'],
+            #    )
+            #except Exception:
+            #    log.exception('squashing error sending sms')
         except KeyboardInterrupt:
             log.info('received SIGINT, stopping')
             break

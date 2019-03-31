@@ -11,6 +11,7 @@ pyyaml = "*"
 tweepy = "*"
 twilio = "*"
 ipython = "*"
+zstandard = "*"
 
 [requires]
 python_version = "3.7"
