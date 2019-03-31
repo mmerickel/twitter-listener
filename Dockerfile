@@ -6,10 +6,10 @@ RUN set -e \
 
 WORKDIR /app
 
-ADD Pipfile Pipfile.lock .
+COPY Pipfile Pipfile.lock ./
 
 RUN pipenv install
 
-ADD listen.py .
+COPY listen.py ./
 
 ENTRYPOINT ["pipenv", "run", "python", "listen.py"]
