@@ -68,8 +68,9 @@ class FileOutputStreamListener(tweepy.StreamListener):
     def on_sighup(self, *args):
         self.cleanup()
 
+        path, ext = os.path.splitext(self.path)
         now = datetime.utcnow()
-        path = f'{self.path}.{now:%Y%m%d.%H%M%S}'
+        path = f'{path}.{now:%Y%m%d.%H%M%S}{ext}'
         os.rename(self.path, path)
         log.info(f'received SIGHUP, rotated file to path={path}')
 
