@@ -20,6 +20,7 @@ class Stream:
 
 class FileOutputStreamListener(tweepy.StreamListener):
     stream = None
+    closed = False
     last_report_at = None
     num_records_since_report = 0
     report_every = timedelta(seconds=1)
@@ -73,6 +74,10 @@ class FileOutputStreamListener(tweepy.StreamListener):
         log.info('received keep-alive')
 
     def on_data(self, data):
+        if self.closed:
+            log.info('dropping message, listener closed')
+            return False
+
         now = datetime.utcnow()
         self.num_records_since_report += 1
 
@@ -115,6 +120,10 @@ class FileOutputStreamListener(tweepy.StreamListener):
             self.stream.compressor.close()
             self.stream.fp.close()
             self.stream = None
+
+    def close(self):
+        self.closed = True
+        self.cleanup()
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(prog=argv[0])
@@ -160,6 +169,7 @@ def main(argv=sys.argv):
             nonlocal stopping
             log.info('received SIGTERM, stopping')
             stopping = True
+            listener.close()
             stream.disconnect()
         try:
             signal.signal(signal.SIGTERM, on_sigterm)
@@ -186,7 +196,7 @@ def main(argv=sys.argv):
             log.info('restarting')
         finally:
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            listener.cleanup()
+            listener.close()
 
 if __name__ == '__main__':
     sys.exit(main() or 0)
