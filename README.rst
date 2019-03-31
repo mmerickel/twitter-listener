@@ -4,10 +4,17 @@ Twitter Listener
 
 Configure a ``profile.yml`` containing your developer account credentials::
 
-  access_token: '...'
-  access_token_secret: '...'
-  consumer_key: '...'
-  consumer_secret: '...'
+  twitter:
+    access_token: '...'
+    access_token_secret: '...'
+    consumer_key: '...'
+    consumer_secret: '...'
+
+  twilio:
+    account_sid: '...'
+    auth_token: '...'
+    source_phone_number: '...'
+    target_phone_number: '...'
 
 Configure a file containing filter parameters (``potus.yml``)::
 

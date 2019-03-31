@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import tweepy
+from twilio.rest import Client as TwilioClient
 import yaml
 
 log = logging.getLogger(__name__)
@@ -99,12 +100,17 @@ def main(argv=sys.argv):
         config = yaml.safe_load(fp)
 
     auth = tweepy.OAuthHandler(
-        profile['consumer_key'],
-        profile['consumer_secret'],
+        profile['twitter']['consumer_key'],
+        profile['twitter']['consumer_secret'],
     )
     auth.set_access_token(
-        profile['access_token'],
-        profile['access_token_secret'],
+        profile['twitter']['access_token'],
+        profile['twitter']['access_token_secret'],
+    )
+
+    twilio = TwilioClient(
+        profile['twilio']['account_sid'],
+        profile['twilio']['auth_token'],
     )
 
     while True:
@@ -112,8 +118,20 @@ def main(argv=sys.argv):
         stream = tweepy.Stream(auth, listener)
         try:
             stream.filter(**config, stall_warnings=True)
-        except Exception:
+        except Exception as ex:
             log.info('restarting after receiving exception')
+            try:
+                twilio.messages.create(
+                    body=(
+                        f'Received twitter-listen exception '
+                        f'type={type(ex).__name__} '
+                        f'message={str(ex)}'
+                    ),
+                    from_=profile['twilio']['source_phone_number'],
+                    to=profile['twilio']['target_phone_number'],
+                )
+            except Exception:
+                log.exception('squashing error sending sms')
         except KeyboardInterrupt:
             log.info('received SIGINT, stopping')
             listener.cleanup()
