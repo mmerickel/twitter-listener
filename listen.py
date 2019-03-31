@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 import gzip
 import logging
 import os
@@ -13,6 +13,9 @@ log = logging.getLogger(__name__)
 
 class FileOutputStreamListener(tweepy.StreamListener):
     fp = None
+    last_report_at = None
+    num_records_since_report = 0
+    report_every = timedelta(seconds=1)
 
     def __init__(self, path):
         super().__init__()
@@ -25,6 +28,8 @@ class FileOutputStreamListener(tweepy.StreamListener):
         """
         log.info('connected')
         signal.signal(signal.SIGHUP, self.on_sighup)
+        self.last_report_at = datetime.utcnow()
+        self.num_records_since_report = 0
 
     def on_error(self, status_code):
         """
@@ -60,6 +65,9 @@ class FileOutputStreamListener(tweepy.StreamListener):
         log.info('received keep-alive')
 
     def on_data(self, data):
+        now = datetime.utcnow()
+        self.num_records_since_report += 1
+
         if self.fp is None:
             log.info(f'opening path={self.path}')
             self.fp = gzip.open(
@@ -69,6 +77,9 @@ class FileOutputStreamListener(tweepy.StreamListener):
             )
         self.fp.write(data.strip().encode('utf8') + b'\n')
 
+        if now - self.last_report_at >= self.report_every:
+            self.report(now=now)
+
     def on_sighup(self, *args):
         self.cleanup()
 
@@ -77,6 +88,18 @@ class FileOutputStreamListener(tweepy.StreamListener):
         path = f'{path}.{now:%Y%m%d.%H%M%S}{ext}'
         os.rename(self.path, path)
         log.info(f'received SIGHUP, rotated file to path={path}')
+
+    def report(self, now=None):
+        if now is None:
+            now = datetime.utcnow()
+        dt = now - self.last_report_at
+
+        log.info(
+            f'received {self.num_records_since_report} records since '
+            f'{dt.total_seconds():.2f} seconds ago'
+        )
+        self.last_report_at = now
+        self.num_records_since_report = 0
 
     def cleanup(self):
         if self.fp is not None:
