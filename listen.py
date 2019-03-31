@@ -62,7 +62,12 @@ class FileOutputStreamListener(tweepy.StreamListener):
     def on_data(self, data):
         if self.fp is None:
             log.info(f'opening path={self.path}')
-            self.fp = gzip.open(self.path, 'at', encoding='utf8')
+            self.fp = gzip.open(
+                self.path,
+                mode='at',
+                encoding='utf8',
+                compresslevel=6,
+            )
         self.fp.write(data.strip() + '\n')
 
     def on_sighup(self, *args):
