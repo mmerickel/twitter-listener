@@ -1,3 +1,2 @@
-*.gz*
-*.yml
-*.txt
+/profile.yml
+/studies

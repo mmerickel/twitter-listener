@@ -1,5 +1,2 @@
 /profile.yml
-*.yml
-*.gz
-*.json
-*.csv
+/studies
