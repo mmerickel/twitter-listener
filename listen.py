@@ -125,8 +125,7 @@ def main(argv=sys.argv):
                 twilio.messages.create(
                     body=(
                         f'Received twitter-listen exception '
-                        f'type={type(ex).__name__} '
-                        f'message={str(ex)}'
+                        f'type={type(ex).__qualname__} args={ex}'
                     ),
                     from_=profile['twilio']['source_phone_number'],
                     to=profile['twilio']['target_phone_number'],
