@@ -4,12 +4,13 @@ RUN set -e \
     && mkdir /app && cd /app \
     && python -m pip install pipenv
 
-ADD Pipfile /app/Pipfile
-ADD Pipfile.lock /app/Pipfile.lock
-ADD listen.py /app/listen.py
-
 WORKDIR /app
 
+ADD Pipfile .
+ADD Pipfile.lock .
+
 RUN pipenv install
+
+ADD listen.py .
 
 ENTRYPOINT ["pipenv", "run", "python", "listen.py"]
