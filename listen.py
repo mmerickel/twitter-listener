@@ -111,7 +111,7 @@ def main(argv=sys.argv):
         listener = FileOutputStreamListener(args.output_path)
         stream = tweepy.Stream(auth, listener)
         try:
-            stream.filter(**config)
+            stream.filter(**config, stall_warnings=True)
         except Exception:
             log.info('restarting after receiving exception')
         except KeyboardInterrupt:
