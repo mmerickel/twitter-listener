@@ -138,10 +138,11 @@ def main(argv=sys.argv):
                 log.exception('squashing error sending sms')
         except KeyboardInterrupt:
             log.info('received SIGINT, stopping')
-            listener.cleanup()
             break
         else:
             log.info('restarting')
+        finally:
+            listener.cleanup()
 
 if __name__ == '__main__':
     sys.exit(main() or 0)
