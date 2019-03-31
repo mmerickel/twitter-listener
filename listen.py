@@ -144,7 +144,15 @@ def main(argv=sys.argv):
     while True:
         listener = FileOutputStreamListener(args.output_path)
         stream = tweepy.Stream(auth, listener)
+
+        stopping = False
+        def on_sigterm(*args):
+            nonlocal stopping
+            log.info('received SIGTERM, stopping')
+            stopping = True
+            stream.disconnect()
         try:
+            signal.signal(signal.SIGTERM, on_sigterm)
             stream.filter(**config, stall_warnings=True)
         except Exception as ex:
             log.info('restarting after receiving exception')
@@ -163,8 +171,11 @@ def main(argv=sys.argv):
             log.info('received SIGINT, stopping')
             break
         else:
+            if stopping:
+                break
             log.info('restarting')
         finally:
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
             listener.cleanup()
 
 if __name__ == '__main__':
