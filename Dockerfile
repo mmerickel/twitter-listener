@@ -6,8 +6,7 @@ RUN set -e \
 
 WORKDIR /app
 
-ADD Pipfile .
-ADD Pipfile.lock .
+ADD Pipfile Pipfile.lock .
 
 RUN pipenv install
 
