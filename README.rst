@@ -27,4 +27,4 @@ Start the listener::
 
 Eventually Ctrl-C the listener or send a SIGHUP to the process which will trigger it to rotate the file. Now you have a file that you can convert to json or to a csv::
 
-  pipenv run python tweets_to_csv.py potus.20190401.001200.zstd potus.csv
+  pipenv run python tweets_to_csv.py potus-stream.20190401.001200.zstd potus.csv
