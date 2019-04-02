@@ -21,7 +21,7 @@ def parse_tweet_stream(path):
                     log.exception(ex)
 
 def save_json(tweets, path):
-    with open(path, 'w') as fp:
+    with open(path, 'w', encoding='utf8') as fp:
         json.dump(list(tweets), fp, sort_keys=True, indent=2)
 
 def parse_args(argv):

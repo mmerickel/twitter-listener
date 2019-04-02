@@ -14,6 +14,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get remove -y build-essential \
     && apt-get clean
 
-COPY listen.py ./
+COPY tweeter ./
 
-ENTRYPOINT ["pipenv", "run", "python", "listen.py"]
+ENTRYPOINT ["pipenv", "run", "tweeter"]

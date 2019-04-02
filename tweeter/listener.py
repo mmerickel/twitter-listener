@@ -1,14 +1,13 @@
-import argparse
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import signal
-import sys
 import tweepy
 from twilio.rest import Client as TwilioClient
 import typing
 import yaml
-import zstandard as zstd
+
+from . import zstd
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +15,14 @@ log = logging.getLogger(__name__)
 class Stream:
     path: str
     fp: typing.BinaryIO
-    compressor: typing.Any
+    writer: typing.Any
+
+    def write(self, bytes):
+        return self.writer.write(bytes)
+
+    def close(self):
+        self.writer.close()
+        self.fp.close()
 
 class FileOutputStreamListener(tweepy.StreamListener):
     stream = None
@@ -86,14 +92,13 @@ class FileOutputStreamListener(tweepy.StreamListener):
             path = f'{self.path_prefix}.{now:%Y%m%d.%H%M%S}.zstd'
             log.info(f'opening path={path}')
             fp = open(path, mode='ab')
-            cctx = zstd.ZstdCompressor(level=10)
-            compressor = cctx.stream_writer(fp)
+            writer = zstd.writer(fp)
             self.stream = Stream(
                 path=path,
                 fp=fp,
-                compressor=compressor,
+                writer=writer,
             )
-        self.stream.compressor.write(data.strip().encode('utf8') + b'\n')
+        self.stream.write(data.strip().encode('utf8') + b'\n')
 
         if now - self.last_report_at >= self.report_every:
             self.report(now=now)
@@ -117,34 +122,18 @@ class FileOutputStreamListener(tweepy.StreamListener):
     def cleanup(self):
         if self.stream is not None:
             log.info(f'closing path={self.stream.path}')
-            self.stream.compressor.close()
-            self.stream.fp.close()
+            self.stream.close()
             self.stream = None
 
     def close(self):
         self.closed = True
         self.cleanup()
 
-def parse_args(argv):
-    parser = argparse.ArgumentParser(prog=argv[0])
-    parser.add_argument('--profile', default='profile.yml')
-    parser.add_argument('config_file')
-    parser.add_argument('output_path_prefix')
-    return parser.parse_args(argv[1:])
+def main(cli, args):
+    profile = cli.profile
 
-def main(argv=sys.argv):
-    args = parse_args(argv)
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)-15s %(levelname)-8s [%(name)s] %(message)s',
-    )
-
-    with open(args.profile, 'r', encoding='utf8') as fp:
-        profile = yaml.safe_load(fp)
-
-    with open(args.config_file, 'r', encoding='utf8') as fp:
-        config = yaml.safe_load(fp)
+    with open(args.filter_file, 'r', encoding='utf8') as fp:
+        filters = yaml.safe_load(fp)
 
     auth = tweepy.OAuthHandler(
         profile['twitter']['consumer_key'],
@@ -173,7 +162,7 @@ def main(argv=sys.argv):
             stream.disconnect()
         try:
             signal.signal(signal.SIGTERM, on_sigterm)
-            stream.filter(**config, stall_warnings=True)
+            stream.filter(**filters, stall_warnings=True)
         except Exception as ex:
             log.info('restarting after receiving exception')
             try:
@@ -197,6 +186,3 @@ def main(argv=sys.argv):
         finally:
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
             listener.close()
-
-if __name__ == '__main__':
-    sys.exit(main() or 0)
