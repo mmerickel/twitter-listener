@@ -14,6 +14,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get remove -y build-essential \
     && apt-get clean
 
-COPY tweeter ./
+COPY tweeter/ ./tweeter
 
 ENTRYPOINT ["pipenv", "run", "tweeter"]
