@@ -1,4 +1,5 @@
 from cached_property import cached_property
+from contextlib import contextmanager
 import logging
 import subparse
 import sys
@@ -35,6 +36,30 @@ class App:
     def profile(self):
         with open(self.profile_file, 'r', encoding='utf8') as fp:
             return yaml.safe_load(fp)
+
+    @contextmanager
+    def input_file(self, path, *, text=True):
+        if path == '-':
+            if text:
+                yield sys.stdin
+            else:
+                yield sys.stdin.buffer
+        else:
+            mode = 'rb' if not text else 'r'
+            with open(path, mode) as fp:
+                yield fp
+
+    @contextmanager
+    def output_file(self, path, *, text=True):
+        if path == '-':
+            if text:
+                yield sys.stdout
+            else:
+                yield sys.stdout.buffer
+        else:
+            mode = 'wb' if not text else 'w'
+            with open(path, mode) as fp:
+                yield fp
 
 def context_factory(cli, args):
     if getattr(args, 'reload', False):
