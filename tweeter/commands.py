@@ -11,6 +11,12 @@ def zstd_concat(parser):
     parser.add_argument('--level', type=int, default=10)
     parser.add_argument('input_files', nargs='+')
 
+@command('.zstd:main_compress', 'zstd:compress')
+def zstd_compress(parser):
+    parser.add_argument('-o', '--output-file', default='-')
+    parser.add_argument('--level', type=int, default=10)
+    parser.add_argument('input_file')
+
 @command('.zstd:main_decompress', 'zstd:decompress')
 def zstd_decompress(parser):
     parser.add_argument('-o', '--output-file', default='-')

@@ -52,6 +52,17 @@ def main_concat(cli, args):
         bytes_out = concat_streams(out_fp, stream_iter, level=args.level)
     log.info(f'wrote {bytes_out} bytes')
 
+def main_compress(cli, args):
+    with ExitStack() as stack:
+        out_fp = stack.enter_context(cli.output_file(args.output_file, text=False))
+        in_fp = stack.enter_context(cli.input_file(args.input_file, text=False))
+
+        bytes_in, bytes_out = compress_streams(out_fp, [in_fp], level=args.level)
+    log.info(
+        f'read {bytes_in} bytes, wrote {bytes_out} bytes, '
+        f'ratio={bytes_out / bytes_in}'
+    )
+
 def main_decompress(cli, args):
     with ExitStack() as stack:
         out_fp = stack.enter_context(cli.output_file(args.output_file, text=False))
@@ -61,7 +72,7 @@ def main_decompress(cli, args):
         bytes_in, bytes_out = dctx.copy_stream(in_fp, out_fp)
     log.info(
         f'read {bytes_in} bytes, wrote {bytes_out} bytes, '
-        f'ratio={bytes_out/bytes_in}'
+        f'ratio={bytes_out / bytes_in}'
     )
 
 def main_from_gz(cli, args):
@@ -73,5 +84,5 @@ def main_from_gz(cli, args):
         bytes_in, bytes_out = compress_streams(out_fp, [gz_in_fp])
     log.info(
         f'read {bytes_in} bytes, wrote {bytes_out} bytes, '
-        f'ratio={bytes_out/bytes_in}'
+        f'ratio={bytes_out / bytes_in}'
     )
