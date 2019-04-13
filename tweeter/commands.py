@@ -5,6 +5,11 @@ def listener(parser):
     parser.add_argument('filter_file')
     parser.add_argument('output_path_prefix')
 
+@command('.search')
+def search(parser):
+    parser.add_argument('-o', '--output-file', default='-')
+    parser.add_argument('query')
+
 @command('.zstd:main_concat', 'zstd:concat')
 def zstd_concat(parser):
     parser.add_argument('-o', '--output-file', default='-')
