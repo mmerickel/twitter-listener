@@ -52,7 +52,6 @@ def prepare_ctx(ctx):
 
 def maybe_add_tweet(ctx, tw):
     if tw.id in ctx.tweet_ids:
-        log.debug(f'found duplicate tweet={tw.id}')
         return
     ctx.tweet_ids.add(tw.id)
     ctx.db.add(tw)
@@ -60,7 +59,6 @@ def maybe_add_tweet(ctx, tw):
 
 def maybe_add_user(ctx, u):
     if u.id in ctx.user_ids:
-        log.debug(f'found duplicate user={u.id}')
         return
     ctx.user_ids.add(u.id)
     ctx.db.add(u)
@@ -95,7 +93,6 @@ def main(cli, args):
                     msg = json.loads(line)
                     add_tweets(ctx, msg)
                 except Exception as ex:
-                    breakpoint()
                     log.error(f'failed parsing line={line}, error={ex}')
                     continue
 
