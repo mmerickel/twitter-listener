@@ -1,0 +1,61 @@
+import sqlalchemy as sa
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import orm
+from sqlalchemy.schema import (
+    Column,
+)
+from sqlalchemy.types import (
+    DateTime,
+    BigInteger,
+    Text,
+)
+
+log = __import__('logging').getLogger(__name__)
+
+Base = declarative_base()
+metadata = Base.metadata
+
+class Tweet(Base):
+    __tablename__ = 'tweet'
+
+    id = Column(BigInteger(), primary_key=True)
+    created_at = Column(DateTime(), nullable=False, index=True)
+    text = Column(Text(), nullable=False)
+    source = Column(Text(), nullable=False)
+    lang = Column(Text())
+
+    user_id = Column(BigInteger(), nullable=False, index=True)
+
+    in_reply_to_tweet_id = Column(BigInteger(), index=True)
+    in_reply_to_user_id = Column(BigInteger(), index=True)
+
+    quoted_tweet_id = Column(BigInteger(), index=True)
+    rt_tweet_id = Column(BigInteger(), index=True)
+
+class User(Base):
+    __tablename__ = 'user'
+
+    id = Column(BigInteger(), primary_key=True)
+    nick = Column(Text(), nullable=False, unique=True)
+
+def connect(path, *, migrate=True, pool=False):
+    log.debug('opening database at path=%s', path)
+    engine = sa.create_engine('sqlite:///' + path)
+    engine.execute('PRAGMA foreign_keys=ON')
+    if migrate:
+        log.debug('running database migrations')
+        metadata.create_all(bind=engine)
+        log.debug('done running migrations')
+    dbmaker = orm.sessionmaker(bind=engine)
+    if pool:
+        return dbmaker
+    return dbmaker()
+
+def close(db, *, rollback=False):
+    if rollback:
+        log.warn('rolling back database changes')
+        db.rollback()
+    else:
+        db.commit()
+    db.close()
+    log.debug('closed database connection')

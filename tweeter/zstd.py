@@ -5,7 +5,7 @@ import zstandard as zstd
 
 log = __import__('logging').getLogger(__name__)
 
-def readlines(fp, *, filter_empty_lines=True):
+def iter_lines(fp, *, filter_empty_lines=True):
     dctx = zstd.ZstdDecompressor()
     stream_reader = dctx.stream_reader(fp)
     stream = io.TextIOWrapper(stream_reader, encoding='utf8')

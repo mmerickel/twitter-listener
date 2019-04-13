@@ -1,5 +1,9 @@
 from subparse import command
 
+def generic_options(parser):
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--profile', default='profile.yml')
+
 @command('.listener')
 def listener(parser):
     parser.add_argument('filter_file')
@@ -9,6 +13,11 @@ def listener(parser):
 def search(parser):
     parser.add_argument('-o', '--output-file', default='-')
     parser.add_argument('query')
+
+@command('.ingest', 'db:ingest')
+def ingest(parser):
+    parser.add_argument('--db', required=True)
+    parser.add_argument('input_files', nargs='+')
 
 @command('.zstd:main_concat', 'zstd:concat')
 def zstd_concat(parser):

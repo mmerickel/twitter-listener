@@ -5,6 +5,8 @@ import subparse
 import sys
 import yaml
 
+from . import commands
+
 class AbortCLI(Exception):
     def __init__(self, message, code):
         self.message = message
@@ -17,6 +19,7 @@ class App:
 
     def __init__(self, profile_file):
         self.profile_file = profile_file
+        self.dbs = []
 
     def out(self, msg):
         if not msg.endswith('\n'):
@@ -61,7 +64,20 @@ class App:
             with open(path, mode) as fp:
                 yield fp
 
-def context_factory(cli, args):
+    def connect_db(self, path, commit_on_close=True):
+        from . import model
+        db = model.connect(path)
+        self.dbs.append(dict(db=db, commit_on_close=commit_on_close))
+        return db
+
+    def commit(self, exc=None):
+        from . import model
+        while self.dbs:
+            info = self.dbs.pop(0)
+            db = info['db']
+            model.close(db, rollback=exc or not info['commit_on_close'])
+
+def context_factory(cli, args, with_db=False):
     if getattr(args, 'reload', False):
         import hupper
         reloader = hupper.start_reloader(
@@ -77,16 +93,17 @@ def context_factory(cli, args):
         format='%(asctime)-15s %(levelname)-8s [%(name)s] %(message)s',
     )
 
-    return app
-
-def generic_options(parser):
-    parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--profile', default='profile.yml')
+    try:
+        yield app
+    except Exception as ex:
+        app.commit(exc=ex)
+    else:
+        app.commit()
 
 def main(argv=sys.argv):
     cli = subparse.CLI(prog='tweeter', context_factory=context_factory)
-    cli.add_generic_options(generic_options)
-    cli.load_commands('.commands')
+    cli.add_generic_options(commands.generic_options)
+    cli.load_commands(commands)
     try:
         return cli.run()
     except AbortCLI as ex:
