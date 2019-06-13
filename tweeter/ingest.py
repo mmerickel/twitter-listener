@@ -2,6 +2,8 @@ import attr
 from datetime import datetime
 from email.utils import parsedate
 import json
+from sqlalchemy import orm
+import typing
 
 from . import model
 from . import zstd
@@ -11,16 +13,25 @@ log = __import__('logging').getLogger(__name__)
 def parse_datetime(value):
     return datetime(*(parsedate(value)[:6]))
 
-def tweet_from_object(obj):
+def tweet_from_object(obj, *, updated_at=None):
+    created_at = parse_datetime(obj['created_at'])
+    if updated_at is None:
+        updated_at = created_at
     tw = model.Tweet(
         id=obj['id'],
-        created_at=parse_datetime(obj['created_at']),
+        created_at=created_at,
+        updated_at=updated_at,
         text=obj['text'],
         source=obj['source'],
         lang=obj['lang'],
         user_id=obj['user']['id'],
         in_reply_to_tweet_id=obj['in_reply_to_status_id'],
         in_reply_to_user_id=obj['in_reply_to_user_id'],
+
+        favorite_count=obj.get('favorite_count'),
+        quote_count=obj.get('quote_count'),
+        reply_count=obj.get('reply_count'),
+        retweet_count=obj.get('retweet_count'),
     )
     quote_obj = obj.get('quoted_status')
     if quote_obj:
@@ -36,46 +47,73 @@ def user_from_object(obj):
     u.nick = obj['screen_name']
     return u
 
-@attr.s
+@attr.s(slots=True, auto_attribs=True)
 class Context:
-    db = attr.ib()
-    tweet_ids = attr.ib(factory=set)
-    user_ids = attr.ib(factory=set)
-    new_tweet_count = attr.ib(default=0)
-    new_user_count = attr.ib(default=0)
+    db: typing.Any
+    tweets_by_id: set = attr.Factory(dict)
+    user_ids: set = attr.Factory(set)
+    new_tweet_count: int = 0
+    new_user_count: int = 0
 
 def prepare_ctx(ctx):
-    ctx.tweet_ids = {id for id, in ctx.db.query(model.Tweet.id)}
+    ctx.tweets_by_id = {
+        tw.id: tw
+        for tw in (
+            ctx.db.query(model.Tweet)
+            .options(orm.load_only(
+                'id',
+                'updated_at',
+                'favorite_count',
+                'quote_count',
+                'reply_count',
+                'retweet_count',
+            ))
+        )
+    }
+    log.debug(f'loaded {len(ctx.tweets_by_id)} tweet ids')
     ctx.user_ids = {id for id, in ctx.db.query(model.User.id)}
-    log.debug(f'loaded {len(ctx.tweet_ids)} tweet ids')
     log.debug(f'loaded {len(ctx.user_ids)} user ids')
 
-def maybe_add_tweet(ctx, tw):
-    if tw.id in ctx.tweet_ids:
-        return
-    ctx.tweet_ids.add(tw.id)
-    ctx.db.add(tw)
-    ctx.new_tweet_count += 1
+def add_tweet(ctx, tw):
+    prev_tw = ctx.tweets_by_id.get(tw.id)
+    if prev_tw is None:
+        ctx.tweets_by_id[tw.id] = tw
+        ctx.db.add(tw)
+        ctx.new_tweet_count += 1
 
-def maybe_add_user(ctx, u):
+    elif tw.updated_at > prev_tw.updated_at:
+        prev_tw.updated_at = tw.updated_at
+        prev_tw.favorite_count = tw.favorite_count
+        prev_tw.quote_count = tw.quote_count
+        prev_tw.reply_count = tw.reply_count
+        prev_tw.retweet_count = tw.retweet_count
+        tw = prev_tw
+    return tw
+
+def add_user(ctx, u):
     if u.id in ctx.user_ids:
         return
     ctx.user_ids.add(u.id)
     ctx.db.add(u)
     ctx.new_user_count += 1
 
-def add_tweets(ctx, msg):
-    tw = tweet_from_object(msg)
-    maybe_add_tweet(ctx, tw)
+def add_tweets_from_status(ctx, msg, updated_at=None):
+    tw = tweet_from_object(msg, updated_at=updated_at)
+    add_tweet(ctx, tw)
 
     u = user_from_object(msg['user'])
-    maybe_add_user(ctx, u)
+    add_user(ctx, u)
 
+    # forward the updated_at value from the original tweet into recursive
+    # additions such that the quote/retweet objects attached to this tweet
+    # are updated with the new tweet's time since the quote/retweet objects
+    # should be an updated version (so statistics reflect now versus their
+    # created_at time)
     if tw.quoted_tweet_id:
-        add_tweets(ctx, msg['quoted_status'])
+        add_tweets_from_status(ctx, msg['quoted_status'], tw.updated_at)
 
     if tw.rt_tweet_id:
-        add_tweets(ctx, msg['retweeted_status'])
+        add_tweets_from_status(ctx, msg['retweeted_status'], tw.updated_at)
 
 def main(cli, args):
     db = cli.connect_db(args.db)
@@ -91,7 +129,7 @@ def main(cli, args):
                 total_messages += 1
                 try:
                     msg = json.loads(line)
-                    add_tweets(ctx, msg)
+                    add_tweets_from_status(ctx, msg)
                 except Exception as ex:
                     log.error(f'failed parsing line={line}, error={ex}')
                     continue

@@ -32,11 +32,17 @@ class Tweet(Base):
     quoted_tweet_id = Column(BigInteger(), index=True)
     rt_tweet_id = Column(BigInteger(), index=True)
 
+    updated_at = Column(DateTime(), nullable=False, index=True)
+    quote_count = Column(BigInteger())
+    reply_count = Column(BigInteger())
+    retweet_count = Column(BigInteger())
+    favorite_count = Column(BigInteger())
+
 class User(Base):
     __tablename__ = 'user'
 
     id = Column(BigInteger(), primary_key=True)
-    nick = Column(Text(), nullable=False, unique=True)
+    nick = Column(Text(), nullable=False)
 
 def connect(path, *, migrate=True, pool=False):
     log.debug('opening database at path=%s', path)

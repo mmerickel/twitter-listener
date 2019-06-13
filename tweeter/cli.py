@@ -97,6 +97,7 @@ def context_factory(cli, args, with_db=False):
         yield app
     except Exception as ex:
         app.commit(exc=ex)
+        raise
     else:
         app.commit()
 

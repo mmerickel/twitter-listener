@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import attr
 from datetime import datetime, timedelta
 import logging
 import signal
@@ -11,7 +11,7 @@ from . import zstd
 
 log = logging.getLogger(__name__)
 
-@dataclass(frozen=True)
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class Stream:
     path: str
     fp: typing.BinaryIO

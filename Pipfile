@@ -7,16 +7,18 @@ verify_ssl = true
 python_version = "3.7"
 
 [packages]
+attrs = "*"
+cached-property = "*"
 hupper = "*"
+ipython = "*"
+python-dateutil = "*"
+pytz = "*"
 pyyaml = "*"
+sqlalchemy = "*"
+subparse = "*"
 tweepy = "*"
 twilio = "*"
-ipython = "*"
 zstandard = "*"
-cached-property = "*"
-subparse = "*"
-sqlalchemy = "*"
-attrs = "*"
 
 [dev-packages]
 
