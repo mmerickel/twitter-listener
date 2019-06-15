@@ -42,7 +42,7 @@ def main_csv(cli, args):
                 tweet.in_reply_to_user_id,
                 tweet.quoted_tweet_id,
                 tweet.rt_tweet_id,
-                tweet.updated_at,
+                tweet.updated_at.isoformat(),
                 tweet.favorite_count,
                 tweet.retweet_count,
                 tweet.reply_count,
