@@ -52,6 +52,11 @@ def ingest(parser):
     parser.add_argument('--db', required=True)
     parser.add_argument('input_files', nargs='+')
 
+@command('.csv', 'csv')
+def csv(parser):
+    parser.add_argument('--db', required=True)
+    parser.add_argument('-o', '--output-file', default='-')
+
 @command('.zstd:main_concat', 'zstd:concat')
 def zstd_concat(parser):
     """
