@@ -2,7 +2,7 @@ import csv
 
 from . import model
 
-def main(cli, args):
+def main_csv(cli, args):
     db = cli.connect_db(args.db)
 
     q = (
