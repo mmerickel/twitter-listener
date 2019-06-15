@@ -1,4 +1,8 @@
 import csv
+from datetime import datetime
+import matplotlib.pyplot as plt
+import numpy as np
+import sqlalchemy as sa
 
 from . import model
 
@@ -49,3 +53,31 @@ def main_csv(cli, args):
                 tweet.quote_count,
                 tweet.text,
             ])
+
+def main_plot(cli, args):
+    db = cli.connect_db(args.db)
+
+    date_col = sa.func.date(model.Tweet.created_at).label('date')
+    tweets = (
+        db.query(
+            date_col,
+            sa.func.count().label('count'),
+        )
+        .filter(model.Tweet.created_at.between(
+            datetime(2019, 3, 20),
+            datetime(2019, 5, 10),
+        ))
+        .filter(model.Tweet.in_reply_to_tweet_id.is_(None))
+        .group_by(date_col)
+        .order_by(date_col.asc())
+        .all()
+    )
+    dates = [t.date for t in tweets]
+    counts = [t.count for t in tweets]
+
+    fig, ax = plt.subplots()
+    x = np.arange(len(dates))
+    plt.bar(x, counts)
+    plt.xticks(x, dates)
+    with cli.output_file(args.output_file, text=False) as fp:
+        plt.savefig(fp, format='png')

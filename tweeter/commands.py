@@ -57,6 +57,11 @@ def csv(parser):
     parser.add_argument('--db', required=True)
     parser.add_argument('-o', '--output-file', default='-')
 
+@command('.report:main_plot', 'report:plot')
+def plot(parser):
+    parser.add_argument('--db', required=True)
+    parser.add_argument('-o', '--output-file', default='-')
+
 @command('.zstd:main_concat', 'zstd:concat')
 def zstd_concat(parser):
     """
