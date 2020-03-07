@@ -52,9 +52,10 @@ def ingest(parser):
     parser.add_argument('--db', required=True)
     parser.add_argument('input_files', nargs='+')
 
-@command('.report:main_csv', 'report:csv')
-def csv(parser):
+@command('.report:main', 'report')
+def report(parser):
     parser.add_argument('--db', required=True)
+    parser.add_argument('--format')
     parser.add_argument('-o', '--output-file', default='-')
 
 @command('.report:main_plot', 'report:plot')

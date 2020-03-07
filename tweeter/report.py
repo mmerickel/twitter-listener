@@ -1,16 +1,54 @@
-import csv
 from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
+import os.path
+import pandas as pd
 import sqlalchemy as sa
 
 from . import model
 
-def main_csv(cli, args):
+def main(cli, args):
     db = cli.connect_db(args.db)
 
+    format = args.format
+    if not format:
+        _, ext = os.path.splitext(args.output_file)
+        if ext == '.csv':
+            format = 'csv'
+        elif ext == '.xlsx':
+            format = 'excel'
+        else:
+            cli.abort('could not guess file format from extension')
+
+    if format == 'csv':
+        format_is_text = True
+    elif format == 'excel':
+        format_is_text = False
+    else:
+        cli.abort('unrecognized file format')
+
+    Tweet = model.Tweet
+    User = model.User
+
+    as_txt = lambda col: sa.cast(col, sa.Text).label(col.name)
     q = (
-        db.query(model.Tweet, model.User)
+        db.query(
+            as_txt(Tweet.id),
+            Tweet.created_at,
+            as_txt(Tweet.user_id),
+            User.nick,
+            as_txt(Tweet.in_reply_to_tweet_id),
+            as_txt(Tweet.in_reply_to_user_id),
+            as_txt(Tweet.quoted_tweet_id),
+            as_txt(Tweet.rt_tweet_id),
+            Tweet.updated_at,
+            Tweet.favorite_count,
+            Tweet.retweet_count,
+            Tweet.reply_count,
+            Tweet.quote_count,
+            Tweet.lang,
+            Tweet.text,
+        )
         .join(
             model.User,
             model.User.id == model.Tweet.user_id,
@@ -18,43 +56,20 @@ def main_csv(cli, args):
         .order_by(model.Tweet.created_at.asc())
     )
 
-    with cli.output_file(args.output_file, text=True) as fp:
-        writer = csv.writer(fp)
-        writer.writerow([
-            'id',
-            'created_at (utc)',
-            'user_id',
-            'user_nick',
-            'in_reply_to_tweet_id',
-            'in_reply_to_user_id',
-            'quoted_tweet_id',
-            'retweet_tweet_id',
-            'counted_at (utc)',
-            'favorite_count',
-            'retweet_count',
-            'reply_count',
-            'quote_count',
-            'lang',
-            'text',
-        ])
-        for tweet, user in q:
-            writer.writerow([
-                tweet.id,
-                tweet.created_at.isoformat(),
-                tweet.user_id,
-                user.nick,
-                tweet.in_reply_to_tweet_id,
-                tweet.in_reply_to_user_id,
-                tweet.quoted_tweet_id,
-                tweet.rt_tweet_id,
-                tweet.updated_at.isoformat(),
-                tweet.favorite_count,
-                tweet.retweet_count,
-                tweet.reply_count,
-                tweet.quote_count,
-                tweet.lang,
-                tweet.text,
-            ])
+    df = model.query_to_pandas(q)
+
+    with cli.output_file(args.output_file, text=format_is_text) as fp:
+        if format == 'csv':
+            df.to_csv(fp, index=False)
+        elif format == 'excel':
+            with pd.ExcelWriter(
+                fp,
+                engine='xlsxwriter',
+                options=dict(
+                    strings_to_numbers=False,
+                ),
+            ) as writer:
+                df.to_excel(writer, index=False)
 
 def main_plot(cli, args):
     db = cli.connect_db(args.db)

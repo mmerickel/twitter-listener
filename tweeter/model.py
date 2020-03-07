@@ -65,3 +65,9 @@ def close(db, *, rollback=False):
         db.commit()
     db.close()
     log.debug('closed database connection')
+
+def query_to_pandas(q):
+    import pandas as pd
+
+    engine = q.session.bind
+    return pd.read_sql(q.statement.compile(dialect=engine.dialect), engine)

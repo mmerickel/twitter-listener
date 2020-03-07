@@ -21,6 +21,8 @@ subparse = "*"
 tweepy = "*"
 twilio = "*"
 zstandard = "*"
+pandas = "*"
+xlsxwriter = "*"
 
 [dev-packages]
 
