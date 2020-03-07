@@ -34,6 +34,7 @@ def main_csv(cli, args):
             'retweet_count',
             'reply_count',
             'quote_count',
+            'lang',
             'text',
         ])
         for tweet, user in q:
@@ -51,6 +52,7 @@ def main_csv(cli, args):
                 tweet.retweet_count,
                 tweet.reply_count,
                 tweet.quote_count,
+                tweet.lang,
                 tweet.text,
             ])
 
