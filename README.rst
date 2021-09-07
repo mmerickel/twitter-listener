@@ -23,7 +23,7 @@ Configure a file containing filter parameters (``potus.yml``)::
 
 Start the listener::
 
-  pipenv run python listen.py potus.yml potus-stream
+  pipenv run tweeter api:stream potus.yml potus-stream
 
 Eventually Ctrl-C the listener or send a SIGHUP to the process which will trigger it to rotate the file. Now you have a file that you can convert to json or to a csv::
 
