@@ -31,8 +31,8 @@ class TweetStream(tweepy.Stream):
     num_records_since_report = 0
     report_interval = timedelta(seconds=5)
 
-    def __init__(self, *args, path_prefix, report_interval=None):
-        super().__init__(*args)
+    def __init__(self, *args, path_prefix, report_interval=None, **kw):
+        super().__init__(*args, **kw)
         self.path_prefix = path_prefix
         if report_interval is not None:
             self.report_interval = report_interval
@@ -95,6 +95,18 @@ class TweetStream(tweepy.Stream):
 
         """
         log.warn(f'received stall warning={warning}')
+
+    def on_delete(self, status_id, user_id):
+        log.info(f'delete status={status_id} user_id={user_id}')
+
+    def on_scrub_geo(self, notice):
+        log.info(f'geo scrub={notice}')
+
+    def on_status_withheld(self, notice):
+        log.info(f'status withheld={notice}')
+
+    def on_user_withheld(self, notice):
+        log.info(f'user withheld={notice}')
 
     def on_data(self, data):
         if self.closed:
