@@ -24,16 +24,18 @@ class Stream:
         self.writer.close()
         self.fp.close()
 
-class FileOutputStreamListener(tweepy.StreamListener):
+class TweetStream(tweepy.Stream):
     stream = None
     closed = False
     last_report_at = None
     num_records_since_report = 0
-    report_every = timedelta(seconds=1)
+    report_interval = timedelta(seconds=5)
 
-    def __init__(self, path_prefix):
-        super().__init__()
+    def __init__(self, *args, path_prefix, report_interval=None):
+        super().__init__(*args)
         self.path_prefix = path_prefix
+        if report_interval is not None:
+            self.report_interval = report_interval
 
     def on_connect(self):
         """
@@ -45,19 +47,19 @@ class FileOutputStreamListener(tweepy.StreamListener):
         self.last_report_at = datetime.utcnow()
         self.num_records_since_report = 0
 
-    def on_error(self, status_code):
+    def on_request_error(self, status_code):
         """
-        Called instead of on_connect.
+        Called when a non-200 HTTP status code is received.
 
         """
         log.error(f'received error status={status_code}')
 
-    def on_timeout(self):
+    def on_connection_error(self):
         """
         Called when the connection times out.
 
         """
-        log.error(f'received timeout')
+        log.error('received timeout')
 
     def on_exception(self, e):
         """
@@ -66,18 +68,33 @@ class FileOutputStreamListener(tweepy.StreamListener):
         This is the only way the stream is closed.
 
         """
-        signal.signal(signal.SIGHUP, signal.SIG_DFL)
         exc_info = (type(e), e, e.__traceback__)
         log.exception('received exception while streaming', exc_info=exc_info)
-        self.cleanup()
 
-    def keep_alive(self):
+    def on_keep_alive(self):
         """
         The streaming periodically contains empty lines to keep the
         connection open.
 
         """
         log.info('received keep-alive')
+
+    def on_limit(self, track):
+        """
+        A limit notice was received.
+
+        """
+        log.info(
+            f'limit notice received, {track} tweets dropped since connnection '
+            f'was opened'
+        )
+
+    def on_warning(self, warning):
+        """
+        The stream received a stall warning.
+
+        """
+        log.warn(f'received stall warning={warning}')
 
     def on_data(self, data):
         if self.closed:
@@ -98,13 +115,24 @@ class FileOutputStreamListener(tweepy.StreamListener):
                 fp=fp,
                 writer=writer,
             )
-        self.stream.write(data.strip().encode('utf8') + b'\n')
+        self.stream.write(data)
+        self.stream.write(b'\n')
 
-        if now - self.last_report_at >= self.report_every:
+        if now - self.last_report_at >= self.report_interval:
             self.report(now=now)
 
+    def on_disconnect(self):
+        """
+        Called when the stream has disconnected.
+
+        """
+        signal.signal(signal.SIGHUP, signal.SIG_DFL)
+        self.closed = True
+        self.cleanup()
+        self.report()
+
     def on_sighup(self, *args):
-        log.info(f'received SIGHUP, rotating')
+        log.info('received SIGHUP, rotating')
         self.cleanup()
 
     def report(self, now=None):
@@ -125,24 +153,16 @@ class FileOutputStreamListener(tweepy.StreamListener):
             self.stream.close()
             self.stream = None
 
-    def close(self):
-        self.closed = True
-        self.cleanup()
-
 def main(cli, args):
     profile = cli.profile
 
     with open(args.filter_file, 'r', encoding='utf8') as fp:
         filters = yaml.safe_load(fp)
 
-    auth = tweepy.OAuthHandler(
-        profile['twitter']['consumer_key'],
-        profile['twitter']['consumer_secret'],
-    )
-    auth.set_access_token(
-        profile['twitter']['access_token'],
-        profile['twitter']['access_token_secret'],
-    )
+    stream_profile = profile.get('stream', {})
+    report_interval = stream_profile.get('report_interval')
+    if report_interval is not None:
+        report_interval = timedelta(seconds=report_interval)
 
     twilio = TwilioClient(
         profile['twilio']['account_sid'],
@@ -150,15 +170,20 @@ def main(cli, args):
     )
 
     while True:
-        listener = FileOutputStreamListener(args.output_path_prefix)
-        stream = tweepy.Stream(auth, listener)
+        stream = TweetStream(
+            profile['twitter']['consumer_key'],
+            profile['twitter']['consumer_secret'],
+            profile['twitter']['access_token'],
+            profile['twitter']['access_token_secret'],
+            path_prefix=args.output_path_prefix,
+            report_interval=report_interval,
+        )
 
         stopping = False
         def on_sigterm(*args):
             nonlocal stopping
             log.info('received SIGTERM, stopping')
             stopping = True
-            listener.close()
             stream.disconnect()
         try:
             signal.signal(signal.SIGTERM, on_sigterm)
@@ -185,4 +210,4 @@ def main(cli, args):
             log.info('restarting')
         finally:
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            listener.close()
+            stream.disconnect()
