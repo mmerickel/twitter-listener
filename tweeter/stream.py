@@ -26,7 +26,6 @@ class Stream:
 
 class TweetStream(tweepy.Stream):
     stream = None
-    closed = False
     last_report_at = None
     num_records_since_report = 0
     report_interval = timedelta(seconds=5)
@@ -63,9 +62,7 @@ class TweetStream(tweepy.Stream):
 
     def on_exception(self, e):
         """
-        Called when the stream is interrupted.
-
-        This is the only way the stream is closed.
+        Called when the stream cannot recover from an error.
 
         """
         exc_info = (type(e), e, e.__traceback__)
@@ -79,40 +76,7 @@ class TweetStream(tweepy.Stream):
         """
         log.info('received keep-alive')
 
-    def on_limit(self, track):
-        """
-        A limit notice was received.
-
-        """
-        log.info(
-            f'limit notice received, {track} tweets dropped since connnection '
-            f'was opened'
-        )
-
-    def on_warning(self, warning):
-        """
-        The stream received a stall warning.
-
-        """
-        log.warn(f'received stall warning={warning}')
-
-    def on_delete(self, status_id, user_id):
-        log.info(f'delete status={status_id} user_id={user_id}')
-
-    def on_scrub_geo(self, notice):
-        log.info(f'geo scrub={notice}')
-
-    def on_status_withheld(self, notice):
-        log.info(f'status withheld={notice}')
-
-    def on_user_withheld(self, notice):
-        log.info(f'user withheld={notice}')
-
     def on_data(self, data):
-        if self.closed:
-            log.info('dropping message, listener closed')
-            return False
-
         now = datetime.utcnow()
         self.num_records_since_report += 1
 
@@ -139,13 +103,12 @@ class TweetStream(tweepy.Stream):
 
         """
         signal.signal(signal.SIGHUP, signal.SIG_DFL)
-        self.closed = True
-        self.cleanup()
+        self.rotate()
         self.report()
 
     def on_sighup(self, *args):
         log.info('received SIGHUP, rotating')
-        self.cleanup()
+        self.rotate()
 
     def report(self, now=None):
         if now is None:
@@ -159,7 +122,7 @@ class TweetStream(tweepy.Stream):
         self.last_report_at = now
         self.num_records_since_report = 0
 
-    def cleanup(self):
+    def rotate(self):
         if self.stream is not None:
             log.info(f'closing path={self.stream.path}')
             self.stream.close()
