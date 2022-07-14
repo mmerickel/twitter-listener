@@ -7,6 +7,7 @@ from sqlalchemy.schema import (
 from sqlalchemy.types import (
     DateTime,
     BigInteger,
+    Boolean,
     Text,
 )
 
@@ -25,6 +26,14 @@ class Tweet(Base):
     lang = Column(Text())
 
     user_id = Column(BigInteger(), nullable=False, index=True)
+    user_description = Column(Text())
+    user_verified = Column(Boolean)
+    user_followers_count = Column(BigInteger())
+    user_friends_count = Column(BigInteger())
+    user_listed_count = Column(BigInteger())
+    user_statuses_count = Column(BigInteger())
+    user_favorites_count = Column(BigInteger())
+    user_created_at = Column(DateTime(), nullable=False)
 
     in_reply_to_tweet_id = Column(BigInteger(), index=True)
     in_reply_to_user_id = Column(BigInteger(), index=True)

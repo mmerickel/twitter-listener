@@ -37,6 +37,14 @@ def main(cli, args):
             Tweet.created_at,
             as_txt(Tweet.user_id),
             User.nick,
+            Tweet.user_description,
+            Tweet.user_verified,
+            Tweet.user_followers_count,
+            Tweet.user_friends_count,
+            Tweet.user_listed_count,
+            Tweet.user_statuses_count,
+            Tweet.user_favorites_count,
+            Tweet.user_created_at,
             as_txt(Tweet.in_reply_to_tweet_id),
             as_txt(Tweet.in_reply_to_user_id),
             as_txt(Tweet.quoted_tweet_id),
@@ -84,7 +92,9 @@ def main_plot(cli, args):
             datetime(2019, 3, 20),
             datetime(2019, 5, 10),
         ))
-        .filter(model.Tweet.in_reply_to_tweet_id.is_(None))
+        # .filter(model.Tweet.in_reply_to_tweet_id.is_(None))
+        .filter(model.Tweet.rt_tweet_id.is_(None))
+        .filter(sa.func.lower(model.Tweet.text).like('%#saam%'))
         .group_by(date_col)
         .order_by(date_col.asc())
         .all()

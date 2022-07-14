@@ -25,6 +25,15 @@ def tweet_from_object(obj, *, updated_at=None):
         source=obj['source'],
         lang=obj['lang'],
         user_id=obj['user']['id'],
+        user_description=obj['user']['description'],
+        user_verified=obj['user']['verified'],
+        user_followers_count=obj['user']['followers_count'],
+        user_friends_count=obj['user']['friends_count'],
+        user_listed_count=obj['user']['listed_count'],
+        user_statuses_count=obj['user']['statuses_count'],
+        user_favorites_count=obj['user']['favourites_count'],
+        user_created_at=parse_datetime(obj['user']['created_at']),
+
         in_reply_to_tweet_id=obj['in_reply_to_status_id'],
         in_reply_to_user_id=obj['in_reply_to_user_id'],
 
@@ -33,6 +42,25 @@ def tweet_from_object(obj, *, updated_at=None):
         reply_count=obj.get('reply_count'),
         retweet_count=obj.get('retweet_count'),
     )
+    for url in obj.get('entities', {}).get('urls', []):
+        tw.text = tw.text.replace(url['url'], url['expanded_url'])
+    for media in obj.get('entities', {}).get('media', []):
+        tw.text = tw.text.replace(media['url'], media['media_url'])
+    for url in obj.get('extended_entities', {}).get('urls', []):
+        tw.text = tw.text.replace(url['url'], url['expanded_url'])
+    for media in obj.get('extended_entities', {}).get('media', []):
+        tw.text = tw.text.replace(media['url'], media['media_url'])
+    extended_tweet = obj.get('extended_tweet')
+    if extended_tweet:
+        tw.text = extended_tweet.get('full_text') or tw.text
+        for url in extended_tweet.get('entities', {}).get('urls', []):
+            tw.text = tw.text.replace(url['url'], url['expanded_url'])
+        for media in extended_tweet.get('entities', {}).get('media', []):
+            tw.text = tw.text.replace(media['url'], media['media_url'])
+        for url in extended_tweet.get('extended_entities', {}).get('urls', []):
+            tw.text = tw.text.replace(url['url'], url['expanded_url'])
+        for media in extended_tweet.get('extended_entities', {}).get('media', []):
+            tw.text = tw.text.replace(media['url'], media['media_url'])
     quote_obj = obj.get('quoted_status')
     if quote_obj:
         tw.quoted_tweet_id = quote_obj['id']
@@ -131,6 +159,7 @@ def main(cli, args):
                     msg = json.loads(line)
                     add_tweets_from_status(ctx, msg)
                 except Exception as ex:
+                    breakpoint()
                     log.error(f'failed parsing line={line}, error={ex}')
                     continue
 
