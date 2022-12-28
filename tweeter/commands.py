@@ -101,3 +101,11 @@ def zstd_from_gz(parser):
     parser.add_argument('-o', '--output-file', default='-')
     parser.add_argument('--level', type=int, default=10)
     parser.add_argument('input_file')
+
+@command('.media:main_download', 'media:download')
+def download_media(parser):
+    """
+    Download media for tweets.
+
+    """
+    parser.add_argument('--db', required=True)
